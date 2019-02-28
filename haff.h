@@ -1,7 +1,3 @@
-struct node {
-    char value;
-    struct node *left;
-    struct node *right;
-};
+int encode(FILE *input, FILE *output);
 
-int encode(char * fileName);
+int decode(FILE *input, FILE *output);

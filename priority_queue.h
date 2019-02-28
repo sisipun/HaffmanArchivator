@@ -1,10 +1,7 @@
-struct queue_element {
-    char value;
-    int priority;
-    struct queue_element *next;
-    struct queue_element *previous;
-};
+#include <stdlib.h>
 
-void push(struct queue_element *new_element);
+void push(size_t priority, void *body);
 
-struct queue_element * pop();
+void *pop();
+
+int get_queue_size();
