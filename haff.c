@@ -1,6 +1,5 @@
 #include "priority_queue.h"
 #include <stdio.h>
-#include <stdlib.h>
 
 #define ALPHABET_SIZE 256
 
@@ -8,50 +7,24 @@ struct node {
     int sym;
     size_t freq;
     struct haff_code *code;
-    struct node *root;
     struct node *left;
     struct node *right;
 };
 
 struct haff_code {
     int len;
-    int *code;
+    int *val;
 };
 
-int *copyArray(int *array, int size) {
-    int *copy = calloc(ALPHABET_SIZE, sizeof(int));
+int *copy_array(const int *, int);
 
-    for (int i = 0; i < size; i++) {
-        *(copy + i) = *(array + i);
-    }
+void set_codes(struct node *, struct haff_code *);
 
-    return copy;
-}
-
-void setCodes(struct node *curr_node, struct haff_code *prev_code) {
-    if (curr_node->sym != -1) {
-        curr_node->code = prev_code;
-        return;
-    }
-
-    struct haff_code *left_code = malloc(sizeof(struct haff_code));
-    left_code->len = prev_code->len;
-    left_code->code = copyArray(prev_code->code, prev_code->len);
-    *(left_code->code + left_code->len) = 0;
-    left_code->len += 1;
-    setCodes(curr_node->left, left_code);
-
-    struct haff_code *right_code = malloc(sizeof(struct haff_code));
-    right_code->len = prev_code->len;
-    right_code->code = copyArray(prev_code->code, prev_code->len);
-    *(right_code->code + right_code->len) = 1;
-    right_code->len += 1;
-    setCodes(curr_node->right, right_code);
-}
+int *char_to_bites(char);
 
 void encode(FILE *input, FILE *output) {
     struct node **node_array = calloc(ALPHABET_SIZE, sizeof(struct node *));
-    int current_alphabet_size = 0;
+    int node_count = 0;
     int sym_count = 0;
 
     int sym;
@@ -66,9 +39,9 @@ void encode(FILE *input, FILE *output) {
             curr_node->left = 0;
             curr_node->right = 0;
             *(node_array + sym) = curr_node;
-            current_alphabet_size++;
+            node_count++;
         }
-        (*(node_array + sym))->freq += 1;
+        curr_node->freq += 1;
         sym_count++;
     }
 
@@ -87,24 +60,22 @@ void encode(FILE *input, FILE *output) {
         new_node->freq = first_min_node->freq + second_min_node->freq;
         new_node->left = first_min_node;
         new_node->right = second_min_node;
-        first_min_node->root = new_node;
-        second_min_node->root = new_node;
         push(new_node->freq, new_node);
     }
 
     struct node *root = pop();
+
     struct haff_code *code = malloc(sizeof(struct haff_code));
     code->len = 0;
-    code->code = calloc(ALPHABET_SIZE, sizeof(int));
-    setCodes(root, code);
+    code->val = calloc(ALPHABET_SIZE, sizeof(int));
+    set_codes(root, code);
 
-    fwrite(&current_alphabet_size, sizeof(int), 1, output);
+    fwrite(&node_count, sizeof(int), 1, output);
     fwrite(&sym_count, sizeof(int), 1, output);
     for (int i = 0; i < ALPHABET_SIZE; i++) {
         curr_node = *(node_array + i);
         if (curr_node) {
             fwrite(curr_node, sizeof(struct node), 1, output);
-            fwrite(curr_node->code, sizeof(struct haff_code), 1, output);
         }
     }
 
@@ -114,7 +85,7 @@ void encode(FILE *input, FILE *output) {
     while ((sym = getc(input)) != EOF) {
         curr_node = *(node_array + sym);
         int len = curr_node->code->len;
-        int *curr_code = curr_node->code->code;
+        int *curr_code = curr_node->code->val;
         for (int i = 0; i < len; i++) {
             if (*(curr_code + i)) {
                 write_code = (write_code << 1) | 1;
@@ -138,35 +109,15 @@ void encode(FILE *input, FILE *output) {
     free(node_array);
 }
 
-int *charToBytes(char c) {
-    int *bytes = calloc(8, sizeof(int));
-    for (int i = 0; i < 8; i++) {
-        int code;
-        if (c & (1 << i)) {
-            code = 1;
-        } else {
-            code = 0;
-        }
-        bytes[7 - i] = code;
-    }
-
-    return bytes;
-}
-
 void decode(FILE *input, FILE *output) {
-    struct node **node_array = calloc(ALPHABET_SIZE, sizeof(struct node *));
-    int current_alphabet_size;
+    int node_count;
     int sym_count;
 
-    fread(&current_alphabet_size, sizeof(int), 1, input);
+    fread(&node_count, sizeof(int), 1, input);
     fread(&sym_count, sizeof(int), 1, input);
-    for (int i = 0; i < current_alphabet_size; i++) {
+    for (int i = 0; i < node_count; i++) {
         struct node *new_node = malloc(sizeof(struct node));
-        struct haff_code *new_code = malloc(sizeof(struct haff_code));
         fread(new_node, sizeof(struct node), 1, input);
-        fread(new_code, sizeof(struct haff_code), 1, input);
-        new_node->code = new_code;
-        *(node_array + new_node->sym) = new_node;
         push(new_node->freq, new_node);
     }
 
@@ -178,8 +129,6 @@ void decode(FILE *input, FILE *output) {
         new_node->freq = first_min_node->freq + second_min_node->freq;
         new_node->left = first_min_node;
         new_node->right = second_min_node;
-        first_min_node->root = new_node;
-        second_min_node->root = new_node;
         push(new_node->freq, new_node);
     }
     struct node *root = pop();
@@ -188,7 +137,7 @@ void decode(FILE *input, FILE *output) {
     struct node *curr_root = root;
     while (sym_count) {
         fread(&buff, sizeof(char), 1, input);
-        int *bytes = charToBytes(buff);
+        int *bytes = char_to_bites(buff);
         for (int i = 0; i < 8; i++) {
             if (bytes[i]) {
                 curr_root = curr_root->right;
@@ -205,4 +154,50 @@ void decode(FILE *input, FILE *output) {
             }
         }
     }
+}
+
+int *copy_array(const int *array, int size) {
+    int *copy = calloc(ALPHABET_SIZE, sizeof(int));
+
+    for (int i = 0; i < size; i++) {
+        *(copy + i) = *(array + i);
+    }
+
+    return copy;
+}
+
+void set_codes(struct node *curr_node, struct haff_code * prev_code) {
+    if (curr_node->sym != -1) {
+        curr_node->code = prev_code;
+        return;
+    }
+
+    struct haff_code *left_code = malloc(sizeof(struct haff_code));
+    left_code->len = prev_code->len;
+    left_code->val = copy_array(prev_code->val, prev_code->len);
+    *(left_code->val + left_code->len) = 0;
+    left_code->len += 1;
+    set_codes(curr_node->left, left_code);
+
+    struct haff_code *right_code = malloc(sizeof(struct haff_code));
+    right_code->len = prev_code->len;
+    right_code->val = copy_array(prev_code->val, prev_code->len);
+    *(right_code->val + right_code->len) = 1;
+    right_code->len += 1;
+    set_codes(curr_node->right, right_code);
+}
+
+int *char_to_bites(char c) {
+    int *bites = calloc(8, sizeof(int));
+    for (int i = 0; i < 8; i++) {
+        int bit;
+        if (c & (1 << i)) {
+            bit = 1;
+        } else {
+            bit = 0;
+        }
+        bites[7 - i] = bit;
+    }
+
+    return bites;
 }

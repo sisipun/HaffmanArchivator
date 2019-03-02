@@ -19,11 +19,7 @@ void push(size_t priority, void *body) {
 
     if (!head && !tail) {
         head = malloc(sizeof(struct queue_element));
-        head->body = 0;
-        head->priority = 0;
         tail = malloc(sizeof(struct queue_element));
-        tail->body = 0;
-        tail->priority = 0;
         head->next = new_element;
         tail->previous = new_element;
         new_element->previous = head;
@@ -43,15 +39,15 @@ void push(size_t priority, void *body) {
 }
 
 void *pop() {
-    struct queue_element *queue_element = head->next;
-    if (queue_element == tail) {
+    if (!queue_size) {
         return 0;
     }
     queue_size--;
 
-    head->next = queue_element->next;
-    queue_element->next->previous = head;
-    return queue_element->body;
+    struct queue_element *pop_element = head->next;
+    head->next = pop_element->next;
+    pop_element->next->previous = head;
+    return pop_element->body;
 }
 
 int get_queue_size() {
