@@ -2,7 +2,7 @@
 
 struct queue_element *head, *tail;
 
-int queue_size = 0;
+static int queue_size = 0;
 
 struct queue_element {
     size_t priority;
@@ -17,7 +17,7 @@ void push(size_t priority, void *body) {
     new_element->body = body;
     queue_size++;
 
-    if (!head && !tail) {
+    if (!head || !tail) {
         head = malloc(sizeof(struct queue_element));
         tail = malloc(sizeof(struct queue_element));
         head->next = new_element;
@@ -40,16 +40,18 @@ void push(size_t priority, void *body) {
 
 void *pop() {
     if (!queue_size) {
-        return 0;
+        return NULL;
     }
-    queue_size--;
 
     struct queue_element *pop_element = head->next;
     head->next = pop_element->next;
     pop_element->next->previous = head;
+    queue_size--;
+    
     return pop_element->body;
 }
 
-int get_queue_size() {
+int get_queue_size()
+{
     return queue_size;
 }

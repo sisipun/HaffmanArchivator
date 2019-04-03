@@ -1,7 +1,9 @@
-#include "priority_queue.h"
+#define ALPHABET_SIZE 256
+
 #include <stdio.h>
 
-#define ALPHABET_SIZE 256
+#include "priority_queue.h"
+
 
 struct node {
     int sym;
